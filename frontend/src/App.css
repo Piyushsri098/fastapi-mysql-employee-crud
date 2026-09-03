@@ -14,124 +14,245 @@ h1 {
 h2 {
   color: #555;
   margin-top: 30px;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
 }
 
 .form {
-  background: #f9f9f9;
-  padding: 20px;
+  background-color: #f9f9f9;
+  border: 1px solid #ddd;
   border-radius: 8px;
-  margin-bottom: 30px;
+  padding: 20px;
+  margin-bottom: 20px;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 10px;
 }
 
-.form input,
-.form button {
+.form input {
   padding: 10px;
-  border: 1px solid #ddd;
+  border: 1px solid #ccc;
   border-radius: 4px;
   font-size: 14px;
 }
 
-.form input {
-  background: white;
+.form input:disabled {
+  background-color: #e9ecef;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
 }
 
 .form button {
-  background: #007bff;
-  color: white;
-  cursor: pointer;
+  padding: 10px 20px;
   border: none;
+  border-radius: 4px;
+  font-size: 14px;
   font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s;
 }
 
-.form button:hover {
-  background: #0056b3;
+.form button[type="submit"] {
+  background-color: #007bff;
+  color: white;
+}
+
+.form button[type="submit"]:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.form button[type="submit"]:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
 .cancel-btn {
-  background: #6c757d !important;
+  background-color: #6c757d;
+  color: white;
 }
 
-.cancel-btn:hover {
-  background: #5a6268 !important;
+.cancel-btn:hover:not(:disabled) {
+  background-color: #545b62;
+}
+
+.cancel-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .error {
-  background: #f8d7da;
+  background-color: #f8d7da;
   color: #721c24;
-  padding: 12px;
-  border-radius: 4px;
-  margin-bottom: 20px;
   border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  padding: 12px;
+  margin-bottom: 20px;
+  animation: slideIn 0.3s ease-in-out;
 }
 
 .loading {
   text-align: center;
-  color: #666;
   padding: 20px;
+  color: #666;
+  font-size: 16px;
 }
 
 .employees-list {
-  background: white;
-  padding: 20px;
+  background-color: #fff;
+  border: 1px solid #ddd;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 10px;
 }
 
 table thead {
-  background: #f0f0f0;
-}
-
-table th,
-table td {
-  padding: 12px;
-  text-align: left;
-  border-bottom: 1px solid #ddd;
-}
-
-table tr:hover {
-  background: #f9f9f9;
+  background-color: #f8f9fa;
+  border-bottom: 2px solid #ddd;
 }
 
 table th {
+  padding: 12px;
+  text-align: left;
   font-weight: bold;
   color: #333;
+}
+
+table td {
+  padding: 12px;
+  border-bottom: 1px solid #ddd;
+}
+
+table tbody tr:hover {
+  background-color: #f9f9f9;
+}
+
+table tbody tr.deleting {
+  opacity: 0.5;
+  background-color: #fff5f5;
 }
 
 .edit-btn,
 .delete-btn {
   padding: 6px 12px;
-  margin-right: 5px;
   border: none;
   border-radius: 4px;
-  cursor: pointer;
   font-size: 12px;
   font-weight: bold;
+  cursor: pointer;
+  margin-right: 5px;
+  transition: all 0.3s;
 }
 
 .edit-btn {
-  background: #28a745;
+  background-color: #28a745;
   color: white;
 }
 
-.edit-btn:hover {
-  background: #218838;
+.edit-btn:hover:not(:disabled) {
+  background-color: #218838;
+}
+
+.edit-btn:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
 .delete-btn {
-  background: #dc3545;
+  background-color: #dc3545;
   color: white;
 }
 
-.delete-btn:hover {
-  background: #c82333;
+.delete-btn:hover:not(:disabled) {
+  background-color: #c82333;
+}
+
+.delete-btn:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  padding: 20px;
+  background-color: #f9f9f9;
+  border-top: 1px solid #ddd;
+}
+
+.pagination button {
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  background-color: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  color: #007bff;
+  transition: all 0.3s;
+}
+
+.pagination button:hover:not(:disabled) {
+  background-color: #007bff;
+  color: white;
+}
+
+.pagination button:disabled {
+  color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.pagination span {
+  font-weight: bold;
+  color: #333;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 10px;
+  }
+
+  .form {
+    grid-template-columns: 1fr;
+  }
+
+  table {
+    font-size: 12px;
+  }
+
+  table th,
+  table td {
+    padding: 8px;
+  }
+
+  .edit-btn,
+  .delete-btn {
+    padding: 4px 8px;
+    font-size: 11px;
+    margin-right: 3px;
+  }
 }

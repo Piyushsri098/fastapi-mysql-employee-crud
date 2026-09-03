@@ -1,9 +1,13 @@
-import { useEffect, useState } from 'react'
-import { getEmployees, createEmployee, updateEmployee, deleteEmployee } from './api'
+import { useEffect, useState, useRef } from 'react'
+import { getEmployees, getEmployeesCount, createEmployee, updateEmployee, deleteEmployee } from './api'
 import './App.css'
+
+const ITEMS_PER_PAGE = 10
 
 function App() {
   const [employees, setEmployees] = useState([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [currentPage, setCurrentPage] = useState(0)
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -14,15 +18,29 @@ function App() {
   const [editingId, setEditingId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDeletingId, setIsDeletingId] = useState(null)
+  const submitTimeoutRef = useRef(null)
 
   useEffect(() => {
     fetchEmployees()
+    fetchEmployeeCount()
+  }, [currentPage])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (submitTimeoutRef.current) {
+        clearTimeout(submitTimeoutRef.current)
+      }
+    }
   }, [])
 
   const fetchEmployees = async () => {
     try {
       setLoading(true)
-      const data = await getEmployees()
+      const skip = currentPage * ITEMS_PER_PAGE
+      const data = await getEmployees(skip, ITEMS_PER_PAGE)
       setEmployees(data)
       setError(null)
     } catch (err) {
@@ -30,6 +48,15 @@ function App() {
       console.error(err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchEmployeeCount = async () => {
+    try {
+      const data = await getEmployeesCount()
+      setTotalCount(data.total)
+    } catch (err) {
+      console.error('Failed to fetch employee count:', err)
     }
   }
 
@@ -43,13 +70,43 @@ function App() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    
+    // Prevent double submission
+    if (isSubmitting) return
+    
     try {
+      setIsSubmitting(true)
+      setError(null)
+
       if (editingId) {
-        await updateEmployee(editingId, formData)
-        setEditingId(null)
+        // Update existing employee - optimistic update
+        const updatedEmployee = { ...formData, id: editingId }
+        const optimisticEmployees = employees.map(emp =>
+          emp.id === editingId ? updatedEmployee : emp
+        )
+        setEmployees(optimisticEmployees)
+        
+        try {
+          await updateEmployee(editingId, formData)
+          setEditingId(null)
+        } catch (err) {
+          // Revert on error
+          fetchEmployees()
+          throw err
+        }
       } else {
-        await createEmployee(formData)
+        // Create new employee
+        const newEmployee = await createEmployee(formData)
+        
+        // Optimistic update: add to list if there's space
+        if (employees.length < ITEMS_PER_PAGE) {
+          setEmployees([...employees, newEmployee])
+        }
+        
+        // Update total count
+        setTotalCount(totalCount + 1)
       }
+
       setFormData({
         first_name: '',
         last_name: '',
@@ -57,10 +114,11 @@ function App() {
         department: '',
         salary: '',
       })
-      fetchEmployees()
     } catch (err) {
-      setError('Failed to save employee: ' + err.message)
+      setError('Failed to save employee: ' + err.response?.data?.detail || err.message)
       console.error(err)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -73,16 +131,33 @@ function App() {
       salary: employee.salary,
     })
     setEditingId(employee.id)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleDelete = async (id) => {
     if (confirm('Are you sure you want to delete this employee?')) {
       try {
-        await deleteEmployee(id)
-        fetchEmployees()
+        setIsDeletingId(id)
+        setError(null)
+        
+        // Optimistic update: remove from list
+        const updatedEmployees = employees.filter(emp => emp.id !== id)
+        setEmployees(updatedEmployees)
+        setTotalCount(totalCount - 1)
+        
+        try {
+          await deleteEmployee(id)
+        } catch (err) {
+          // Revert on error
+          fetchEmployees()
+          fetchEmployeeCount()
+          throw err
+        }
       } catch (err) {
-        setError('Failed to delete employee: ' + err.message)
+        setError('Failed to delete employee: ' + err.response?.data?.detail || err.message)
         console.error(err)
+      } finally {
+        setIsDeletingId(null)
       }
     }
   }
@@ -98,6 +173,8 @@ function App() {
     })
   }
 
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE)
+
   return (
     <div className="container">
       <h1>Employee Manager</h1>
@@ -112,6 +189,7 @@ function App() {
           value={formData.first_name}
           onChange={handleInputChange}
           required
+          disabled={isSubmitting}
         />
         <input
           type="text"
@@ -120,6 +198,7 @@ function App() {
           value={formData.last_name}
           onChange={handleInputChange}
           required
+          disabled={isSubmitting}
         />
         <input
           type="email"
@@ -128,6 +207,7 @@ function App() {
           value={formData.email}
           onChange={handleInputChange}
           required
+          disabled={isSubmitting}
         />
         <input
           type="text"
@@ -136,6 +216,7 @@ function App() {
           value={formData.department}
           onChange={handleInputChange}
           required
+          disabled={isSubmitting}
         />
         <input
           type="number"
@@ -144,12 +225,22 @@ function App() {
           value={formData.salary}
           onChange={handleInputChange}
           required
+          disabled={isSubmitting}
         />
-        <button type="submit">
-          {editingId ? 'Update Employee' : 'Add Employee'}
+        <button type="submit" disabled={isSubmitting}>
+          {isSubmitting
+            ? 'Saving...'
+            : editingId
+            ? 'Update Employee'
+            : 'Add Employee'}
         </button>
         {editingId && (
-          <button type="button" onClick={handleCancel} className="cancel-btn">
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="cancel-btn"
+            disabled={isSubmitting}
+          >
             Cancel
           </button>
         )}
@@ -159,49 +250,74 @@ function App() {
         <div className="loading">Loading employees...</div>
       ) : (
         <div className="employees-list">
-          <h2>Employees ({employees.length})</h2>
+          <h2>Employees (Total: {totalCount})</h2>
           {employees.length === 0 ? (
             <p>No employees found.</p>
           ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Department</th>
-                  <th>Salary</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {employees.map((employee) => (
-                  <tr key={employee.id}>
-                    <td>{employee.id}</td>
-                    <td>
-                      {employee.first_name} {employee.last_name}
-                    </td>
-                    <td>{employee.email}</td>
-                    <td>{employee.department}</td>
-                    <td>${employee.salary.toFixed(2)}</td>
-                    <td>
-                      <button
-                        onClick={() => handleEdit(employee)}
-                        className="edit-btn"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(employee.id)}
-                        className="delete-btn"
-                      >
-                        Delete
-                      </button>
-                    </td>
+            <>
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Department</th>
+                    <th>Salary</th>
+                    <th>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {employees.map((employee) => (
+                    <tr key={employee.id} className={isDeletingId === employee.id ? 'deleting' : ''}>
+                      <td>{employee.id}</td>
+                      <td>
+                        {employee.first_name} {employee.last_name}
+                      </td>
+                      <td>{employee.email}</td>
+                      <td>{employee.department}</td>
+                      <td>${parseFloat(employee.salary).toFixed(2)}</td>
+                      <td>
+                        <button
+                          onClick={() => handleEdit(employee)}
+                          className="edit-btn"
+                          disabled={isSubmitting || isDeletingId === employee.id}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(employee.id)}
+                          className="delete-btn"
+                          disabled={isSubmitting || isDeletingId === employee.id}
+                        >
+                          {isDeletingId === employee.id ? 'Deleting...' : 'Delete'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="pagination">
+                  <button
+                    onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+                    disabled={currentPage === 0 || loading}
+                  >
+                    Previous
+                  </button>
+                  <span>
+                    Page {currentPage + 1} of {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
+                    disabled={currentPage === totalPages - 1 || loading}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
